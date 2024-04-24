@@ -1,0 +1,9 @@
+numpy>=1.19.5
+seaborn>=0.11.0
+matplotlib>=3.3.4
+torch>=1.7.1
+tensorflow>=2.4.0
+keras>=2.4.3
+opencv-python>=4.5.1.48
+progressbar2>=3.53.1
+pandas>=1.2.1
