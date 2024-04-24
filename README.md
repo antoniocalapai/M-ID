@@ -12,9 +12,7 @@ M-ID is an integrated suite of tools designed for the identification, labeling, 
 ## Getting Started
 
 ### Prerequisites
-- Python 3.8 or higher
-- PyQt5
-- TensorFlow or PyTorch (for model training)
+The environment needed to use the M-ID will be contained into a docker (work in progress)
 
 ### Installation
 1. Clone the repository:
