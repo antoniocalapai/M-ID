@@ -1,0 +1,10 @@
+{
+  "main": {
+    "buttons": [
+      "Label",
+      "Design",
+      "Identify",
+      "Test"
+    ]
+  }
+}
