@@ -1,8 +1,11 @@
+<<<<<<< HEAD
 '''
 Graphical User Interface for the Monkey Identification Project @cnl-DPZ
 acalapai@dpz.eu - 2024
 '''
 
+=======
+>>>>>>> origin/main
 import json
 import os
 from PyQt5.QtWidgets import QApplication, QWidget, QLabel, QVBoxLayout, QPushButton
@@ -37,7 +40,11 @@ def build_interface(config):
 # ------------------ Event Handling ------------------
 
 def handle_button_click(button_name):
+<<<<<<< HEAD
     print(f"Button clicked: {button_name}")
+=======
+    print(f"Button clicked: {button_name}")  # Placeholder - Implement your actions here
+>>>>>>> origin/main
 
 # ------------------ GUI Setup ------------------
 
