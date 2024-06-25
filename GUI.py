@@ -2,10 +2,9 @@
 Graphical User Interface for the Monkey Identification Project @cnl-DPZ
 acalapai@dpz.eu - 2024
 '''
-
+from PyQt5.QtWidgets import QApplication, QWidget, QLabel, QVBoxLayout, QPushButton
 import json
 import os
-from PyQt5.QtWidgets import QApplication, QWidget, QLabel, QVBoxLayout, QPushButton
 
 # ------------------ Configuration Loading ------------------
 
