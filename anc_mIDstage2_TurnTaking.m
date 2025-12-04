@@ -1,0 +1,228 @@
+%% anc_mIDstage2_TurnTaking
+addpath(genpath('/Users/antoninocalapai/ownCloud/Shared/Cognitive_testing'))
+
+% Compute the performance of the ML models
+user = char(java.lang.System.getProperty('user.name'));
+warning('OFF', 'MATLAB:table:RowsAddedExistingVars')
+
+% add tpaths with MWorks analysis scripts from the owncloud
+addpath(genpath((['/Users/' user '/ownCloud/Shared/MWorks_MatLab'])))
+
+% add and set relevant paths from weco server
+addpath(genpath('/Volumes/DPZ/KognitiveNeurowissenschaften/WeCo/MatlabTools'))
+analysisPath = '/Volumes/DPZ/KognitiveNeurowissenschaften/WeCo/MonkeyID/analysis/';
+dataPath = '/Volumes/DPZ/KognitiveNeurowissenschaften/WeCo/MonkeyID/analysis/data/';
+plotPath = '/Volumes/DPZ/KognitiveNeurowissenschaften/WeCo/MonkeyID/analysis/plots/';
+labelsPath = '/Volumes/DPZ/KognitiveNeurowissenschaften/WeCo/MonkeyID/Labels/';
+
+% load the dataframe
+d = dir([dataPath '*stage1&2_CuratedDataFrame*']);
+dd = zeros(length(d),1);
+for j = 1:length(d)
+    dd(j,1) = datenum(d(j).date);
+end
+[~, i] = max(dd);
+
+DATA = readtable([dataPath d(i).name]);
+
+% Filter out null and errors
+P = DATA(DATA.manual_label ~= "NotFound" & ...
+    DATA.manual_label ~= "null",:);
+
+P.ML_label = categorical(P.ML_label);
+P.correct = P.ML_label == P.manual_label;
+P.group = categorical(P.group);
+
+P.time_of_day = datestr(datenum(string(P.time_of_day),'HHMMSS'),13);
+P.time_of_day = datetime(P.time_of_day,'Format','HH:mm:ss');
+P.hour = dateshift(P.time_of_day, 'start', 'hour');
+P.hour = datetime(P.hour,'Format','HH');
+P.session = zeros(size(P,1),1);
+
+P(P.group == 'edgSun' & P.date == 20211228,:) = [];
+
+all_groups = unique(P.group);
+for i = 1:size(all_groups,1)
+    temp = P(P.group == all_groups(i),:);
+    all_dates = unique(temp.date);
+    for j = 1:size(all_dates,1)
+        P{P.group == all_groups(i) & P.date == all_dates(j), 'session'} = j;
+    end
+end
+
+% Calculate trials train
+colNames = {'animal', 'timestamp', 'outcome', 'date', 'session', 'trial', 'group', 'dominance'};
+T = cell2table(cell(0,length(colNames)), 'VariableNames', colNames);
+
+subjects = categorical(unique(P.manual_label));
+trials_train_abs = [];
+trials_train_rel = [];
+monkey_name = [];
+
+for i = 1:length(subjects)
+    temp = P(P.manual_label == subjects(i),:);
+    sessions = unique(temp.session);
+    
+    M = [];
+    M.dominance = unique(P{P.manual_label == subjects(i),'dominance'});
+    M.animal  = subjects(i);
+    M.group = unique(temp.group);
+    
+    for j = 1:length(sessions)
+        M.session = j;
+        M.date = table2array(unique(temp(temp.session == sessions(j), 'date')));
+        
+        M.timestamp = {table2array(temp(temp.session == sessions(j), 'timestamp'))' ...
+            ./ (1000000 * 60)};
+        M.outcome   = {table2array(temp(temp.session == sessions(j), 'outcome'))'};
+        M.trial     = {table2array(temp(temp.session == sessions(j), 'trial'))'};
+        
+        trials_train_abs = [trials_train_abs; {M.timestamp{:} ./ (1000000 * 60)}];
+        trials_train_rel = [trials_train_rel; {M.timestamp{:} ./ M.timestamp{:}(end)}];
+        monkey_name = [monkey_name ; repmat(subjects(i),size(M,1),1)];
+        
+        T = vertcat(T,struct2table(M));
+    end
+end
+
+%% Plotting
+% This needs to be aligned to a common time reference (like 10 am)
+
+clear g
+groups = unique(T.group);
+fig = figure('Position',[100 100 1500 1000]);
+g = gramm('x',T.timestamp,'color',T.animal);
+g.facet_grid(T.session,T.group, 'scale','free');
+g.geom_raster();
+
+g.axe_property('YTickLabel',[])
+g.axe_property('XGrid','on','Ygrid','off');
+g.set_names('x','Time [min]','y','', 'color','Animals', ...
+    'column','gr','row', 'ses');
+g.set_text_options('base_size',12,...
+    'label_scaling',1.5,...
+    'legend_scaling',1.5,...
+    'legend_title_scaling',1.5,...
+    'facet_scaling',1.5,...
+    'title_scaling',1.5);
+
+g.draw();
+g.redraw(0.01);
+
+filename_save = 'mIDstage1&2_TurnTaking_A';
+g.export('file_name',filename_save,'export_path',plotPath,'file_type','pdf')
+
+%%
+clear g
+groups = unique(T.group);
+fig = figure('Position',[100 100 900 100*length(groups)]);
+g(1,1) = gramm('x',T.timestamp,'color',T.animal);
+g(1,1).facet_grid([], T.group, 'scale','independent','column_labels',false);
+g(1,1).set_names('x','Time [min]','y','PSTH [trials]','color','Animals', 'column','gr');
+g(1,1).axe_property('XGrid','on','Ygrid','on');
+g(1,1).stat_bin('nbins',15,'geom','line');
+g(1,1).set_text_options('base_size',12,...
+    'label_scaling',1.5,...
+    'legend_scaling',1,...
+    'legend_title_scaling',1.5,...
+    'facet_scaling',1.5,...
+    'title_scaling',1.5);
+
+
+g(2,1) = gramm('x',T.timestamp,'color',T.dominance);
+g(2,1).facet_grid([], T.group, 'scale','independent','column_labels',false);
+g(2,1).set_names('x','Time [min]','y','PSTH [trials]','color','Domina.', 'column','gr');
+g(2,1).axe_property('XGrid','on','Ygrid','on');
+g(2,1).stat_bin('nbins',15,'geom','line');
+g(2,1).set_text_options('base_size',12,...
+    'label_scaling',1.5,...
+    'legend_scaling',1,...
+    'legend_title_scaling',1.5,...
+    'facet_scaling',1.5,...
+    'title_scaling',1.5);
+
+g.draw();
+
+filename_save = 'mIDstage1&2_TurnTaking_A_supp1';
+g.export('file_name',filename_save,'export_path',plotPath,'file_type','pdf')
+%%
+clear g
+groups = unique(T.group);
+fig = figure('Position',[100 100 600 300]);
+
+g = gramm('x',T.timestamp,'color',T.dominance);
+g.set_names('x','Time [min]','y','PSTH [trials]','color','Domina.');
+g.axe_property('XGrid','on','Ygrid','on');
+g.stat_bin('nbins',15,'geom','line');
+g.set_text_options('base_size',12,...
+    'label_scaling',1.5,...
+    'legend_scaling',1,...
+    'legend_title_scaling',1.5,...
+    'facet_scaling',1.5,...
+    'title_scaling',1.5);
+
+g.draw();
+
+filename_save = 'mIDstage1&2_TurnTaking_A_supp2';
+g.export('file_name',filename_save,'export_path',plotPath,'file_type','pdf')
+
+%%
+J = P;
+J.hour = datetime(J.hour,'Format','HH');
+J.time_of_day = double(string(J.hour));
+K = groupsummary(J,{'manual_label', 'time_of_day', 'session', 'group', 'dominance'});
+K.manual_label = categorical(K.manual_label);
+K.rel = zeros(size(K,1),1);
+
+groups = unique(K.group);
+for h = 1: length(groups)
+    F = K(K.group == groups(h) ,:);
+    
+    sessions = unique(F.session);
+    for l = 1:length(sessions)
+        Q = F(F.session == sessions(l),:);
+        
+        hours = unique(Q.time_of_day);
+        monkeys = unique(Q.manual_label);
+        
+        for i = 1:length(hours)
+            tot = sum(Q{Q.time_of_day == hours(i), 'GroupCount'});
+            for j = 1:length(monkeys)
+                K{K.session == sessions(l) & K.time_of_day == hours(i) & K.manual_label == monkeys(j), 'rel'} = ...
+                    K{K.session == sessions(l) & K.time_of_day == ...
+                    hours(i) & K.manual_label == monkeys(j), 'GroupCount'} / tot;
+                
+            end
+        end
+    end
+end
+
+TEST = groupsummary(K,{'time_of_day', 'session', 'group'},'sum','rel');
+
+%% Plot
+groups = unique(P.group);
+sessions = unique(P.session);
+fig = figure('Position',[100 100 250*(length(sessions)) 200*length(groups)]);
+
+g = gramm('x',categorical(P.hour),'y',P.trial, 'color', P.dominance);
+g.facet_grid(P.group,P.session, 'scale','free_y');
+g.stat_bin('geom','bar');
+%g.stat_summary('geom',{'bar' 'black_errorbar'},'type','quartile', 'dodge',0.99,'setylim',true)
+
+g.axe_property('XGrid','off','Ygrid','on');
+g.set_names('x','Time of Day ','y','', 'color','Dominance', ...
+    'column','Session','row', '');
+g.set_text_options('base_size',10,...
+    'label_scaling',1.5,...
+    'legend_scaling',1,...
+    'legend_title_scaling',1.5,...
+    'facet_scaling',1.5,...
+    'title_scaling',1.5);
+
+g.draw();
+g.redraw(0.01);
+filename_save = 'mIDstage2_DominanceVsTrials_A';
+g.export('file_name',filename_save,'export_path',plotPath,'file_type','pdf')
+
+
+
